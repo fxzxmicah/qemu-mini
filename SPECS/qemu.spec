@@ -1,8 +1,9 @@
-%global qemu_epoch 2
 %global keycodemapdb_commit f5772a62ec52591ff6870b7e8ef32482371f22c6
+%global qemu_arch %{lua:local arch = rpm.expand("%{_arch}"); local map = "x86_64=x86_64;aarch64=aarch64;ppc64le=ppc64;riscv64=riscv64;s390x=s390x;loongarch64=loongarch64"; for pair in string.gmatch(map, "[^;]+") do local eq = string.find(pair, "="); local rpm_arch = string.sub(pair, 1, eq - 1); local qemu_arch = string.sub(pair, eq + 1); if arch == rpm_arch then print(qemu_arch); return end end; print(arch)}
+%global qemu_package_arch %{lua:local arch = rpm.expand("%{_arch}"); local map = "x86_64=x86;aarch64=aarch64;ppc64le=ppc;riscv64=riscv;s390x=s390x;loongarch64=loongarch64"; for pair in string.gmatch(map, "[^;]+") do local eq = string.find(pair, "="); local rpm_arch = string.sub(pair, 1, eq - 1); local package_arch = string.sub(pair, eq + 1); if arch == rpm_arch then print(package_arch); return end end; print(arch)}
 
 Name:           qemu
-Epoch:          %{qemu_epoch}
+Epoch:          2
 Version:        11.0.0
 Release:        1%{?dist}
 Summary:        Minimal QEMU system emulator for KVM guests
@@ -12,7 +13,7 @@ URL:            https://www.qemu.org/
 Source0:        https://download.qemu.org/qemu-%{version}.tar.xz
 Source1:        https://gitlab.com/qemu-project/keycodemapdb/-/archive/%{keycodemapdb_commit}/keycodemapdb-%{keycodemapdb_commit}.tar.gz
 
-ExclusiveArch:  x86_64
+ExclusiveArch:  x86_64 aarch64 ppc64le riscv64 s390x loongarch64
 
 BuildRequires:  gcc
 BuildRequires:  make
@@ -21,6 +22,9 @@ BuildRequires:  ninja-build
 BuildRequires:  perl
 BuildRequires:  pkgconfig
 BuildRequires:  python3
+BuildRequires:  python3-pip
+BuildRequires:  python3-setuptools
+BuildRequires:  python3-wheel
 BuildRequires:  sed
 BuildRequires:  systemd-rpm-macros
 BuildRequires:  tar
@@ -38,33 +42,34 @@ BuildRequires:  pkgconfig(virglrenderer)
 BuildRequires:  pkgconfig(xkbcommon)
 BuildRequires:  pkgconfig(zlib)
 
-Provides:       qemu-common = %{qemu_epoch}:%{version}-%{release}
-Provides:       qemu-system-x86 = %{qemu_epoch}:%{version}-%{release}
-Provides:       qemu-system-x86-core = %{qemu_epoch}:%{version}-%{release}
-Provides:       qemu-ui-gtk = %{qemu_epoch}:%{version}-%{release}
-Provides:       qemu-audio-pipewire = %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-common < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-system-x86 < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-system-x86-core < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-ui-gtk < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-ui-sdl < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-alsa < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-dbus < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-jack < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-oss < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-pa < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-pipewire < %{qemu_epoch}:%{version}-%{release}
-Obsoletes:      qemu-audio-sdl < %{qemu_epoch}:%{version}-%{release}
+Provides:       qemu-common = %{epoch}:%{version}-%{release}
+Provides:       qemu-system-%{qemu_package_arch} = %{epoch}:%{version}-%{release}
+Provides:       qemu-system-%{qemu_package_arch}-core = %{epoch}:%{version}-%{release}
+Provides:       qemu-ui-gtk = %{epoch}:%{version}-%{release}
+Provides:       qemu-audio-pipewire = %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-common < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-system-%{qemu_package_arch} < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-system-%{qemu_package_arch}-core < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-ui-gtk < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-ui-sdl < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-alsa < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-dbus < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-jack < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-oss < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-pa < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-pipewire < %{epoch}:%{version}-%{release}
+Obsoletes:      qemu-audio-sdl < %{epoch}:%{version}-%{release}
 
 %description
-This package is a deliberately small QEMU build for running x86_64 guests on a
-Linux KVM host.  It keeps the system emulator, direct Linux kernel/initramfs
+This package is a deliberately small QEMU build for running native KVM guests
+on a Linux host.  It keeps the system emulator, direct Linux kernel/initramfs
 boot, virtio storage/network/input/display/sound, libslirp user-mode NAT, GTK
 display output, and OpenGL/virgl acceleration.
 
-It intentionally omits user-mode emulators, most architecture targets, TCG,
-guest agent, qemu-img/tools, firmware blobs, external network backends, VNC,
-SPICE, USB passthrough, TPM, Xen, VFIO, and most legacy device models.
+It intentionally omits user-mode emulators, non-native architecture targets,
+TCG, guest agent, qemu-img/tools, non-native firmware blobs, external network
+backends, VNC, SPICE, USB passthrough, TPM, Xen, VFIO, and most legacy device
+models.
 
 %prep
 %autosetup -n qemu-%{version} -p1
@@ -74,9 +79,33 @@ if [ ! -d subprojects/keycodemapdb ]; then
     mv subprojects/keycodemapdb-%{keycodemapdb_commit} subprojects/keycodemapdb
 fi
 
-cat > configs/devices/x86_64-softmmu/minimal.mak <<'EOF'
-# Minimal x86_64 KVM profile.
+cat > configs/devices/%{qemu_arch}-softmmu/minimal.mak <<'EOF'
+# Minimal KVM profile.
+%ifarch x86_64
 CONFIG_Q35=y
+CONFIG_PXB=y
+CONFIG_CXL=y
+CONFIG_CXL_MEM_DEVICE=y
+%endif
+%ifarch aarch64
+CONFIG_ARM_VIRT=y
+CONFIG_PXB=y
+CONFIG_CXL=y
+CONFIG_CXL_MEM_DEVICE=y
+%endif
+%ifarch riscv64
+CONFIG_RISCV_VIRT=y
+%endif
+%ifarch ppc64le
+CONFIG_PSERIES=y
+%endif
+%ifarch s390x
+CONFIG_S390_CCW_VIRTIO=y
+CONFIG_VIRTIO_CCW=y
+%endif
+%ifarch loongarch64
+CONFIG_LOONGARCH_VIRT=y
+%endif
 
 CONFIG_VIRTIO_PCI=y
 CONFIG_VIRTIO_BLK=y
@@ -86,7 +115,6 @@ CONFIG_VIRTIO_RNG=y
 CONFIG_VIRTIO_BALLOON=y
 CONFIG_VIRTIO_INPUT=y
 CONFIG_VIRTIO_GPU=y
-CONFIG_VIRTIO_VGA=y
 CONFIG_VIRTIO_SND=y
 CONFIG_VIRTIO_SERIAL=y
 EOF
@@ -102,10 +130,11 @@ EOF
     --localstatedir=%{_localstatedir} \
     --mandir=%{_mandir} \
     --docdir=%{_docdir}/%{name} \
-    --target-list=x86_64-softmmu \
+    --disable-download \
+    --target-list=%{qemu_arch}-softmmu \
     --without-default-features \
     --without-default-devices \
-    --with-devices-x86_64=minimal \
+    --with-devices-%{qemu_arch}=minimal \
     --enable-system \
     --disable-user \
     --disable-linux-user \
@@ -219,6 +248,123 @@ EOF
 
 find %{buildroot} -name '*.la' -delete
 
+install -d %{buildroot}%{_datadir}/qemu/firmware
+
+%ifarch x86_64 riscv64 ppc64le s390x
+for f in \
+%ifarch x86_64
+    bios-256k.bin \
+    bios.bin \
+    kvmvapic.bin \
+    linuxboot_dma.bin \
+    multiboot_dma.bin \
+    pvh.bin \
+    vgabios-ramfb.bin \
+    pxe-virtio.rom \
+    efi-virtio.rom
+%endif
+%ifarch riscv64
+    opensbi-riscv64-generic-fw_dynamic.bin
+%endif
+%ifarch ppc64le
+    slof.bin \
+    vof.bin
+%endif
+%ifarch s390x
+    s390-ccw.img
+%endif
+do
+    install -pm 0644 pc-bios/${f} %{buildroot}%{_datadir}/qemu/${f}
+done
+%endif
+
+%ifarch x86_64 aarch64 riscv64 loongarch64
+for f in \
+%ifarch x86_64
+    edk2-x86_64-code.fd \
+    edk2-x86_64-secure-code.fd \
+    edk2-i386-vars.fd
+%endif
+%ifarch aarch64
+    edk2-aarch64-code.fd \
+    edk2-arm-vars.fd
+%endif
+%ifarch riscv64
+    edk2-riscv-code.fd \
+    edk2-riscv-vars.fd
+%endif
+%ifarch loongarch64
+    edk2-loongarch64-code.fd \
+    edk2-loongarch64-vars.fd
+%endif
+do
+    install -pm 0644 build/pc-bios/${f} %{buildroot}%{_datadir}/qemu/${f}
+done
+
+for f in \
+%ifarch x86_64
+    50-edk2-x86_64-secure.json \
+    60-edk2-x86_64.json
+%endif
+%ifarch aarch64
+    60-edk2-aarch64.json
+%endif
+%ifarch riscv64
+    60-edk2-riscv64.json
+%endif
+%ifarch loongarch64
+    60-edk2-loongarch64.json
+%endif
+do
+    sed 's|@DATADIR@|%{_datadir}/qemu|g' pc-bios/descriptors/${f} \
+        > %{buildroot}%{_datadir}/qemu/firmware/${f}
+done
+%endif
+
+for f in \
+%ifarch x86_64
+    bios-256k.bin \
+    bios.bin \
+    kvmvapic.bin \
+    linuxboot_dma.bin \
+    multiboot_dma.bin \
+    pvh.bin \
+    vgabios-ramfb.bin \
+    pxe-virtio.rom \
+    efi-virtio.rom \
+    edk2-x86_64-code.fd \
+    edk2-x86_64-secure-code.fd \
+    edk2-i386-vars.fd \
+    firmware/50-edk2-x86_64-secure.json \
+    firmware/60-edk2-x86_64.json
+%endif
+%ifarch aarch64
+    edk2-aarch64-code.fd \
+    edk2-arm-vars.fd \
+    firmware/60-edk2-aarch64.json
+%endif
+%ifarch riscv64
+    opensbi-riscv64-generic-fw_dynamic.bin \
+    edk2-riscv-code.fd \
+    edk2-riscv-vars.fd \
+    firmware/60-edk2-riscv64.json
+%endif
+%ifarch ppc64le
+    slof.bin \
+    vof.bin
+%endif
+%ifarch s390x
+    s390-ccw.img
+%endif
+%ifarch loongarch64
+    edk2-loongarch64-code.fd \
+    edk2-loongarch64-vars.fd \
+    firmware/60-edk2-loongarch64.json
+%endif
+do
+    test -f %{buildroot}%{_datadir}/qemu/${f}
+done
+
 install -Dpm 0644 /dev/stdin %{buildroot}%{_sysusersdir}/qemu.conf <<'EOF'
 g kvm 36
 u qemu 107 'qemu user' - -
@@ -230,8 +376,11 @@ EOF
 
 %files
 %license COPYING COPYING.LIB LICENSE
+%ifarch x86_64 aarch64 riscv64 loongarch64
+%license pc-bios/edk2-licenses.txt
+%endif
 %doc README.rst
-%{_bindir}/qemu-system-x86_64
+%{_bindir}/qemu-system-%{qemu_arch}
 %{_datadir}/qemu/
 %{_datadir}/applications/qemu.desktop
 %{_datadir}/icons/hicolor/*/apps/qemu.*
@@ -239,6 +388,6 @@ EOF
 
 %changelog
 * Mon Apr 27 2026 Fxzx micah <48860358+fxzxmicah@users.noreply.github.com> - 2:11.0.0-1
-- Minimal x86_64 KVM build for direct kernel/initramfs boot,
+- Minimal KVM build for direct kernel/initramfs boot,
   virtio devices, slirp NAT, GTK display, PipeWire audio, and virgl.
 - https://github.com/fxzxmicah/qemu-mini/
