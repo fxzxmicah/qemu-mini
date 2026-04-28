@@ -1,0 +1,221 @@
+diff --git a/hw/acpi/Kconfig b/hw/acpi/Kconfig
+index daabbe6..21c380b 100644
+--- a/hw/acpi/Kconfig
++++ b/hw/acpi/Kconfig
+@@ -5,7 +5,6 @@ config ACPI_X86
+     bool
+     select ACPI
+     select ACPI_NVDIMM
+-    select ACPI_CXL
+     select ACPI_CPU_HOTPLUG
+     select ACPI_MEMORY_HOTPLUG
+     select ACPI_HMAT
+@@ -87,4 +86,4 @@ config ACPI_ERST
+ 
+ config ACPI_CXL
+     bool
+-    depends on ACPI
++    depends on ACPI && CXL
+diff --git a/hw/arm/Kconfig b/hw/arm/Kconfig
+index 4e50fb1..f58e45d 100644
+--- a/hw/arm/Kconfig
++++ b/hw/arm/Kconfig
+@@ -34,7 +34,6 @@ config ARM_VIRT
+     select ACPI_PCIHP
+     select ACPI_PCI_BRIDGE
+     select VIRTIO_MEM_SUPPORTED
+-    select ACPI_CXL
+     select ACPI_HMAT
+ 
+ config CUBIEBOARD
+diff --git a/hw/arm/virt-acpi-build.c b/hw/arm/virt-acpi-build.c
+index 591cfc9..d91022d 100644
+--- a/hw/arm/virt-acpi-build.c
++++ b/hw/arm/virt-acpi-build.c
+@@ -40,13 +40,17 @@
+ #include "hw/acpi/aml-build.h"
+ #include "hw/acpi/utils.h"
+ #include "hw/acpi/pci.h"
++#ifdef CONFIG_ACPI_CXL
+ #include "hw/acpi/cxl.h"
++#endif
+ #include "hw/acpi/memory_hotplug.h"
+ #include "hw/acpi/generic_event_device.h"
+ #include "hw/acpi/tpm.h"
+ #include "hw/acpi/hmat.h"
+ #include "hw/arm/smmuv3.h"
++#ifdef CONFIG_ACPI_CXL
+ #include "hw/cxl/cxl.h"
++#endif
+ #include "hw/pci/pcie_host.h"
+ #include "hw/pci/pci.h"
+ #include "hw/pci/pci_bus.h"
+@@ -124,6 +128,7 @@ static void acpi_dsdt_add_flash(Aml *scope, const MemMapEntry *flash_memmap)
+     aml_append(scope, dev);
+ }
+ 
++#ifdef CONFIG_ACPI_CXL
+ static void build_acpi0017(Aml *table)
+ {
+     Aml *dev, *scope, *method;
+@@ -140,12 +145,15 @@ static void build_acpi0017(Aml *table)
+     aml_append(scope, dev);
+     aml_append(table, scope);
+ }
++#endif
+ 
+ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
+                               uint32_t irq, VirtMachineState *vms)
+ {
+     int ecam_id = VIRT_ECAM_ID(vms->highmem_ecam);
++#ifdef CONFIG_ACPI_CXL
+     bool cxl_present = false;
++#endif
+     PCIBus *bus = vms->bus;
+     bool acpi_pcihp = false;
+ 
+@@ -177,6 +185,7 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
+     }
+ 
+     acpi_dsdt_add_gpex(scope, &cfg);
++#ifdef CONFIG_ACPI_CXL
+     QLIST_FOREACH(bus, &vms->bus->child, sibling) {
+         if (pci_bus_is_cxl(bus)) {
+             cxl_present = true;
+@@ -185,6 +194,7 @@ static void acpi_dsdt_add_pci(Aml *scope, const MemMapEntry *memmap,
+     if (cxl_present) {
+         build_acpi0017(scope);
+     }
++#endif
+ }
+ 
+ static void acpi_dsdt_add_gpio(Aml *scope, const MemMapEntry *gpio_memmap,
+@@ -1343,10 +1353,12 @@ void virt_acpi_build(VirtMachineState *vms, AcpiBuildTables *tables)
+         }
+     }
+ 
++#ifdef CONFIG_ACPI_CXL
+     if (vms->cxl_devices_state.is_enabled) {
+         cxl_build_cedt(table_offsets, tables_blob, tables->linker,
+                        vms->oem_id, vms->oem_table_id, &vms->cxl_devices_state);
+     }
++#endif
+ 
+     if (ms->nvdimms_state->is_enabled) {
+         nvdimm_build_acpi(table_offsets, tables_blob, tables->linker,
+diff --git a/hw/i386/acpi-build.c b/hw/i386/acpi-build.c
+index f622b91..860e645 100644
+--- a/hw/i386/acpi-build.c
++++ b/hw/i386/acpi-build.c
+@@ -28,7 +28,9 @@
+ #include "qemu/bitmap.h"
+ #include "qemu/error-report.h"
+ #include "hw/pci/pci_bridge.h"
++#ifdef CONFIG_ACPI_CXL
+ #include "hw/cxl/cxl.h"
++#endif
+ #include "hw/core/cpu.h"
+ #include "target/i386/cpu.h"
+ #include "hw/timer/hpet.h"
+@@ -69,7 +71,9 @@
+ #include "hw/acpi/aml-build.h"
+ #include "hw/acpi/utils.h"
+ #include "hw/acpi/pci.h"
++#ifdef CONFIG_ACPI_CXL
+ #include "hw/acpi/cxl.h"
++#endif
+ 
+ #include "qom/qom-qobject.h"
+ #include "hw/i386/amd_iommu.h"
+@@ -829,6 +833,7 @@ static Aml *build_q35_dram_controller(const AcpiMcfgInfo *mcfg)
+     return dev;
+ }
+ 
++#ifdef CONFIG_ACPI_CXL
+ static void build_acpi0017(Aml *table)
+ {
+     Aml *dev, *scope, *method;
+@@ -845,6 +850,7 @@ static void build_acpi0017(Aml *table)
+     aml_append(scope, dev);
+     aml_append(table, scope);
+ }
++#endif
+ 
+ static void
+ build_dsdt(GArray *table_data, BIOSLinker *linker,
+@@ -868,7 +874,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
+ #ifdef CONFIG_TPM
+     TPMIf *tpm = tpm_find();
+ #endif
++#ifdef CONFIG_ACPI_CXL
+     bool cxl_present = false;
++#endif
+     int i;
+     VMBusBridge *vmbus_bridge = vmbus_bridge_find();
+     AcpiTable table = { .sig = "DSDT", .rev = 1, .oem_id = x86ms->oem_id,
+@@ -999,13 +1007,18 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
+                                            &error_fatal);
+             scope = aml_scope("\\_SB");
+ 
++#ifdef CONFIG_ACPI_CXL
+             if (pci_bus_is_cxl(bus)) {
+                 dev = aml_device("CL%.02X", bus_num);
+             } else {
+                 dev = aml_device("PC%.02X", bus_num);
+             }
++#else
++            dev = aml_device("PC%.02X", bus_num);
++#endif
+             aml_append(dev, aml_name_decl("_UID", aml_int(uid)));
+             aml_append(dev, aml_name_decl("_BBN", aml_int(bus_num)));
++#ifdef CONFIG_ACPI_CXL
+             if (pci_bus_is_cxl(bus)) {
+                 struct Aml *aml_pkg = aml_package(2);
+ 
+@@ -1015,6 +1028,9 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
+                 aml_append(dev, aml_name_decl("_CID", aml_pkg));
+                 build_cxl_osc_method(dev);
+             } else if (pci_bus_is_express(bus)) {
++#else
++            if (pci_bus_is_express(bus)) {
++#endif
+                 aml_append(dev, aml_name_decl("_HID", aml_eisaid("PNP0A08")));
+                 aml_append(dev, aml_name_decl("_CID", aml_eisaid("PNP0A03")));
+ 
+@@ -1035,6 +1051,7 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
+             aml_append(scope, dev);
+             aml_append(dsdt, scope);
+ 
++#ifdef CONFIG_ACPI_CXL
+             /* Handle the ranges for the PXB expanders */
+             if (pci_bus_is_cxl(bus)) {
+                 MemoryRegion *mr = &pcms->cxl_devices_state.host_mr;
+@@ -1044,12 +1061,15 @@ build_dsdt(GArray *table_data, BIOSLinker *linker,
+                 crs_range_insert(crs_range_set.mem_ranges, base,
+                                  base + memory_region_size(mr) - 1);
+             }
++#endif
+         }
+     }
+ 
++#ifdef CONFIG_ACPI_CXL
+     if (cxl_present) {
+         build_acpi0017(dsdt);
+     }
++#endif
+ 
+     /*
+      * At this point crs_range_set has all the ranges used by pci
+@@ -2070,10 +2090,12 @@ void acpi_build(AcpiBuildTables *tables, MachineState *machine)
+                           machine->nvdimms_state, machine->ram_slots,
+                           x86ms->oem_id, x86ms->oem_table_id);
+     }
++#ifdef CONFIG_ACPI_CXL
+     if (pcms->cxl_devices_state.is_enabled) {
+         cxl_build_cedt(table_offsets, tables_blob, tables->linker,
+                        x86ms->oem_id, x86ms->oem_table_id, &pcms->cxl_devices_state);
+     }
++#endif
+ 
+     acpi_add_table(table_offsets, tables_blob);
+     build_waet(tables_blob, tables->linker, x86ms->oem_id, x86ms->oem_table_id);

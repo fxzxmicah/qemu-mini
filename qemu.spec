@@ -13,6 +13,8 @@ URL:            https://www.qemu.org/
 Source0:        https://download.qemu.org/qemu-%{version}.tar.xz
 Source1:        https://gitlab.com/qemu-project/keycodemapdb/-/archive/%{keycodemapdb_commit}/keycodemapdb-%{keycodemapdb_commit}.tar.gz
 
+Patch1:         donot-depend-on-cxl.patch
+
 ExclusiveArch:  x86_64 aarch64 ppc64le riscv64 s390x loongarch64
 
 BuildRequires:  gcc
@@ -83,15 +85,9 @@ cat > configs/devices/%{qemu_arch}-softmmu/minimal.mak <<'EOF'
 # Minimal KVM profile.
 %ifarch x86_64
 CONFIG_Q35=y
-CONFIG_PXB=y
-CONFIG_CXL=y
-CONFIG_CXL_MEM_DEVICE=y
 %endif
 %ifarch aarch64
 CONFIG_ARM_VIRT=y
-CONFIG_PXB=y
-CONFIG_CXL=y
-CONFIG_CXL_MEM_DEVICE=y
 %endif
 %ifarch riscv64
 CONFIG_RISCV_VIRT=y
@@ -135,6 +131,8 @@ EOF
     --without-default-features \
     --without-default-devices \
     --with-devices-%{qemu_arch}=minimal \
+    --disable-qom-cast-debug \
+    --disable-relocatable \
     --enable-system \
     --disable-user \
     --disable-linux-user \
@@ -178,6 +176,7 @@ EOF
     --disable-tools \
     --disable-guest-agent \
     --disable-docs \
+    --enable-trace-backends=nop \
     --disable-install-blobs \
     --disable-modules \
     --disable-plugins \
@@ -247,6 +246,7 @@ EOF
 %make_install
 
 find %{buildroot} -name '*.la' -delete
+rm -rf %{buildroot}%{_datadir}/qemu/dtb
 
 install -d %{buildroot}%{_datadir}/qemu/firmware
 
